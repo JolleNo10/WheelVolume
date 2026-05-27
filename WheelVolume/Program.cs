@@ -26,7 +26,7 @@ internal static class Program
             createdNew: out bool isFirstInstance
         );
 
-        if (!isFirstInstance)
+        if (!isFirstInstance || IsAnotherWheelVolumeProcessRunning())
         {
             TrySignalExistingInstance();
             return;
@@ -51,6 +51,22 @@ internal static class Program
         catch (UnauthorizedAccessException)
         {
         }
+    }
+
+    private static bool IsAnotherWheelVolumeProcessRunning()
+    {
+        using var currentProcess = Process.GetCurrentProcess();
+
+        foreach (var process in Process.GetProcessesByName(currentProcess.ProcessName))
+        {
+            using (process)
+            {
+                if (process.Id != currentProcess.Id)
+                    return true;
+            }
+        }
+
+        return false;
     }
 }
 

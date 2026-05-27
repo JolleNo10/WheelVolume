@@ -13,6 +13,13 @@ A small Windows utility that adjusts system volume using the mouse wheel.
 - Portable release: no .NET install required
 - Normal release: .NET 8 Windows Desktop Runtime
 
+## Downloads
+- `WheelVolume-v1.0.0-portable-win-x64.zip`: portable build with the .NET runtime included
+- `WheelVolume-v1.0.0-win-x64.zip`: normal build that requires the .NET 8 Windows Desktop Runtime
+
+## Security Note
+Windows may show a warning when running WheelVolume because the executable is not code-signed. If you are unsure about a download, scan it with a service such as VirusTotal or build the app yourself from the open source code in this repository.
+
 ## Build
 From the project root, run:
 
@@ -37,6 +44,18 @@ The default modifier key is Left Alt.
 
 If you enable `Start with Windows` from a portable build, extract WheelVolume to its final folder first. Windows stores the exact executable path.
 
+## Screenshots
+
+![Volume step menu](docs/screenshots/volume-step-menu.png)
+
+![OSD timeout menu](docs/screenshots/osd-settings-menus.png)
+
+![OSD screen menu](docs/screenshots/osd-screen-menu.png)
+
+![Modifier key menu](docs/screenshots/modifier-key-menu.png)
+
+![Osd](docs/screenshots/osd.png)
+
 ## Publish
 
 Portable release, with the .NET runtime included:
@@ -51,10 +70,10 @@ Normal release, requiring the .NET 8 Windows Desktop Runtime:
 dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
 ```
 
-For a different prerelease, override version metadata at publish time:
+For a different release version, override version metadata on both publish commands:
 
 ```powershell
-dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:VersionSuffix=pre.4 -p:FileVersion=1.0.0.4 -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
+dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:Version=1.0.1 -p:FileVersion=1.0.1.0 -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
 ```
 
 ## Run

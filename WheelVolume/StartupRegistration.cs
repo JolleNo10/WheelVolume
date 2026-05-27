@@ -10,14 +10,21 @@ internal static class StartupRegistration
 
     public static bool IsEnabled(string executablePath)
     {
-        using var key = Registry.CurrentUser.OpenSubKey(RegistryPath, writable: false);
-        string expectedValue = GetRegistryValue(executablePath);
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(RegistryPath, writable: false);
+            string expectedValue = GetRegistryValue(executablePath);
 
-        return string.Equals(
-            key?.GetValue(RegistryValueName) as string,
-            expectedValue,
-            StringComparison.OrdinalIgnoreCase
-        );
+            return string.Equals(
+                key?.GetValue(RegistryValueName) as string,
+                expectedValue,
+                StringComparison.OrdinalIgnoreCase
+            );
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException or IOException)
+        {
+            return false;
+        }
     }
 
     public static bool TrySetEnabled(bool enabled, string executablePath)

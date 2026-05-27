@@ -2,7 +2,9 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Security;
 using System.Windows.Forms;
+using Microsoft.Win32;
 using NAudio.CoreAudioApi;
 
 namespace WheelVolume;
@@ -24,6 +26,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private const int WH_MOUSE_LL = 14;
     private const int WM_MOUSEWHEEL = 0x020A;
     private const int WM_MBUTTONDOWN = 0x0207;
+    private const string StartupRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string StartupRegistryValueName = "WheelVolume";
 
     private static LowLevelMouseProc _proc = HookCallback;
     private static IntPtr _hookId = IntPtr.Zero;
@@ -33,6 +37,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static NotifyIcon? _trayIcon;
     private static ContextMenuStrip? _trayMenu;
     private static ToolStripMenuItem? _enabledMenuItem;
+    private static ToolStripMenuItem? _startOnStartupMenuItem;
     private static Icon? _appIcon;
     private static MMDevice? _audioDevice;
     private static VolumeOsd? _osd;
@@ -40,6 +45,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static int _pendingWheelSteps;
     private static bool _pendingMuteToggle;
     private static bool _processingQueuedInput;
+    private static bool _updatingStartupMenuItem;
     private static bool _enabled = true;
     private static ModifierKey _modifierKey = ModifierKey.LeftAlt;
     private static float _volumeStep = DefaultVolumeStep;
@@ -91,6 +97,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trayMenu?.Dispose();
         _trayMenu = null;
         _enabledMenuItem = null;
+        _startOnStartupMenuItem = null;
 
         _audioDevice?.Dispose();
         _audioDevice = null;
@@ -356,6 +363,17 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
         _enabledMenuItem.CheckedChanged += (_, _) => SetHookEnabled(_enabledMenuItem.Checked);
 
+        _startOnStartupMenuItem = new ToolStripMenuItem("Start on Startup")
+        {
+            Checked = IsStartOnStartupEnabled(),
+            CheckOnClick = true
+        };
+        _startOnStartupMenuItem.CheckedChanged += (_, _) =>
+        {
+            if (!_updatingStartupMenuItem)
+                SetStartOnStartup(_startOnStartupMenuItem.Checked);
+        };
+
         var settingsMenu = new ToolStripMenuItem("Settings");
         settingsMenu.DropDownItems.Add(BuildVolumeStepMenu());
         settingsMenu.DropDownItems.Add(BuildOsdTimeoutMenu());
@@ -363,6 +381,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         settingsMenu.DropDownItems.Add(BuildModifierKeyMenu());
 
         menu.Items.Add(_enabledMenuItem);
+        menu.Items.Add(_startOnStartupMenuItem);
         menu.Items.Add(settingsMenu);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => _current?.ExitThread());
@@ -494,6 +513,53 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _osd.DisplayDuration = _osdTimeoutMs;
         _osd.ScreenMode = _osdScreenMode;
+    }
+
+    private static bool IsStartOnStartupEnabled()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryPath, writable: false);
+        string expectedValue = GetStartupRegistryValue();
+
+        return string.Equals(
+            key?.GetValue(StartupRegistryValueName) as string,
+            expectedValue,
+            StringComparison.OrdinalIgnoreCase
+        );
+    }
+
+    private static void SetStartOnStartup(bool enabled)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryPath, writable: true)
+                ?? Registry.CurrentUser.CreateSubKey(StartupRegistryPath, writable: true);
+
+            if (enabled)
+                key.SetValue(StartupRegistryValueName, GetStartupRegistryValue());
+            else
+                key.DeleteValue(StartupRegistryValueName, throwOnMissingValue: false);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException or IOException)
+        {
+            if (_startOnStartupMenuItem != null)
+            {
+                _updatingStartupMenuItem = true;
+                _startOnStartupMenuItem.Checked = !enabled;
+                _updatingStartupMenuItem = false;
+            }
+
+            _trayIcon?.ShowBalloonTip(
+                5000,
+                "WheelVolume",
+                "Startup setting could not be changed.",
+                ToolTipIcon.Error
+            );
+        }
+    }
+
+    private static string GetStartupRegistryValue()
+    {
+        return $"\"{Application.ExecutablePath}\"";
     }
 
     private static bool IsConfiguredModifierHeld()

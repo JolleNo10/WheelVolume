@@ -2,29 +2,55 @@ using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Security;
 using System.Windows.Forms;
-using Microsoft.Win32;
 using NAudio.CoreAudioApi;
 
 namespace WheelVolume;
 
 internal static class Program
 {
+    private const string SingleInstanceMutexName = @"Local\WheelVolume";
+    private const string ShowExistingInstanceEventName = @"Local\WheelVolume.ShowExistingInstance";
+
     [STAThread]
     static void Main()
     {
+        using var showExistingInstanceEvent = new EventWaitHandle(
+            initialState: false,
+            mode: EventResetMode.AutoReset,
+            name: ShowExistingInstanceEventName
+        );
         using var singleInstanceMutex = new Mutex(
             initiallyOwned: true,
-            name: @"Local\WheelVolume",
+            name: SingleInstanceMutexName,
             createdNew: out bool isFirstInstance
         );
 
         if (!isFirstInstance)
+        {
+            TrySignalExistingInstance();
             return;
+        }
 
         ApplicationConfiguration.Initialize();
-        Application.Run(new TrayApplicationContext());
+        Application.Run(new TrayApplicationContext(showExistingInstanceEvent));
+    }
+
+    private static void TrySignalExistingInstance()
+    {
+        try
+        {
+            using var showExistingInstanceEvent = EventWaitHandle.OpenExisting(
+                ShowExistingInstanceEventName
+            );
+            showExistingInstanceEvent.Set();
+        }
+        catch (WaitHandleCannotBeOpenedException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 }
 
@@ -35,14 +61,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private const int WH_MOUSE_LL = 14;
     private const int WM_MOUSEWHEEL = 0x020A;
     private const int WM_MBUTTONDOWN = 0x0207;
-    private const int WHEEL_DELTA = 120;
-    private const string StartupRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string StartupRegistryValueName = "WheelVolume";
 
     private static LowLevelMouseProc _proc = HookCallback;
     private static IntPtr _hookId = IntPtr.Zero;
     private static TrayApplicationContext? _current;
     private static Control? _dispatcher;
+    private readonly EventWaitHandle _showExistingInstanceEvent;
+    private readonly RegisteredWaitHandle _showExistingInstanceWaitHandle;
 
     private static NotifyIcon? _trayIcon;
     private static ContextMenuStrip? _trayMenu;
@@ -53,7 +78,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static VolumeOsd? _osd;
     private static readonly object _pendingLock = new();
     private static readonly object _wheelDeltaLock = new();
-    private static int _wheelDeltaRemainder;
+    private static readonly WheelDeltaAccumulator _wheelDeltaAccumulator = new();
     private static int _pendingWheelSteps;
     private static bool _pendingMuteToggle;
     private static bool _processingQueuedInput;
@@ -65,11 +90,21 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static int _osdTimeoutMs = DefaultOsdTimeoutMs;
     private static DateTime _lastAudioErrorNotificationUtc = DateTime.MinValue;
 
-    public TrayApplicationContext()
+    public TrayApplicationContext(EventWaitHandle showExistingInstanceEvent)
     {
+        _showExistingInstanceEvent = showExistingInstanceEvent;
+
         _current = this;
         _dispatcher = new Control();
         _ = _dispatcher.Handle;
+
+        _showExistingInstanceWaitHandle = ThreadPool.RegisterWaitForSingleObject(
+            _showExistingInstanceEvent,
+            (_, _) => RunOnUiThread(ShowAlreadyRunningNotification),
+            state: null,
+            Timeout.Infinite,
+            executeOnlyOnce: false
+        );
 
         _appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
         _trayMenu = BuildTrayMenu();
@@ -94,6 +129,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private static void Cleanup()
     {
+        _current?._showExistingInstanceWaitHandle.Unregister(null);
         RemoveHook();
 
         if (_trayIcon != null)
@@ -121,6 +157,16 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _dispatcher = null;
 
         _current = null;
+    }
+
+    private static void ShowAlreadyRunningNotification()
+    {
+        _trayIcon?.ShowBalloonTip(
+            2500,
+            "WheelVolume",
+            "WheelVolume is already running.",
+            ToolTipIcon.Info
+        );
     }
 
     private static void SetHookEnabled(bool enabled)
@@ -180,7 +226,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         lock (_wheelDeltaLock)
         {
-            _wheelDeltaRemainder = 0;
+            _wheelDeltaAccumulator.Reset();
         }
     }
 
@@ -375,11 +421,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         lock (_wheelDeltaLock)
         {
-            _wheelDeltaRemainder += delta;
-            int steps = _wheelDeltaRemainder / WHEEL_DELTA;
-            _wheelDeltaRemainder %= WHEEL_DELTA;
-
-            return steps;
+            return _wheelDeltaAccumulator.AddDelta(delta);
         }
     }
 
@@ -396,7 +438,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _startOnStartupMenuItem = new ToolStripMenuItem("Start with Windows")
         {
-            Checked = IsStartOnStartupEnabled(),
+            Checked = StartupRegistration.IsEnabled(Application.ExecutablePath),
             CheckOnClick = true
         };
         _startOnStartupMenuItem.CheckedChanged += (_, _) =>
@@ -546,54 +588,24 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _osd.ScreenMode = _osdScreenMode;
     }
 
-    private static bool IsStartOnStartupEnabled()
-    {
-        using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryPath, writable: false);
-        string expectedValue = GetStartupRegistryValue();
-
-        return string.Equals(
-            key?.GetValue(StartupRegistryValueName) as string,
-            expectedValue,
-            StringComparison.OrdinalIgnoreCase
-        );
-    }
-
     private static void SetStartOnStartup(bool enabled)
     {
-        try
+        if (StartupRegistration.TrySetEnabled(enabled, Application.ExecutablePath))
+            return;
+
+        if (_startOnStartupMenuItem != null)
         {
-            using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryPath, writable: true)
-                ?? Registry.CurrentUser.CreateSubKey(StartupRegistryPath, writable: true);
-
-            if (key == null)
-                throw new IOException("The Windows startup registry key could not be opened.");
-
-            if (enabled)
-                key.SetValue(StartupRegistryValueName, GetStartupRegistryValue());
-            else
-                key.DeleteValue(StartupRegistryValueName, throwOnMissingValue: false);
+            _updatingStartupMenuItem = true;
+            _startOnStartupMenuItem.Checked = !enabled;
+            _updatingStartupMenuItem = false;
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException or IOException)
-        {
-            if (_startOnStartupMenuItem != null)
-            {
-                _updatingStartupMenuItem = true;
-                _startOnStartupMenuItem.Checked = !enabled;
-                _updatingStartupMenuItem = false;
-            }
 
-            _trayIcon?.ShowBalloonTip(
-                5000,
-                "WheelVolume",
-                "Startup setting could not be changed.",
-                ToolTipIcon.Error
-            );
-        }
-    }
-
-    private static string GetStartupRegistryValue()
-    {
-        return $"\"{Application.ExecutablePath}\"";
+        _trayIcon?.ShowBalloonTip(
+            5000,
+            "WheelVolume",
+            "Startup setting could not be changed.",
+            ToolTipIcon.Error
+        );
     }
 
     private static bool IsConfiguredModifierHeld()

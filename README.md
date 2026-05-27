@@ -22,6 +22,12 @@ dotnet build -c Release
 
 Building from source requires the .NET 8 SDK.
 
+## Test
+
+```powershell
+dotnet run --project .\WheelVolume.Tests\WheelVolume.Tests.csproj -c Release
+```
+
 ## Usage
 - Hold the configured modifier key and scroll the mouse wheel to change volume.
 - Hold the configured modifier key and click the middle mouse button to toggle mute.
@@ -43,6 +49,12 @@ Normal release, requiring the .NET 8 Windows Desktop Runtime:
 
 ```powershell
 dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
+```
+
+For a different prerelease, override version metadata at publish time:
+
+```powershell
+dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:VersionSuffix=pre.4 -p:FileVersion=1.0.0.4 -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
 ```
 
 ## Run

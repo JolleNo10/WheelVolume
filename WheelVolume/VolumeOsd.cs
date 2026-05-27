@@ -6,6 +6,8 @@ namespace WheelVolume;
 
 internal class VolumeOsd : Form
 {
+    private const int WS_EX_NOACTIVATE = 0x08000000;
+
     private readonly Label _label;
     private readonly ProgressBar _bar;
     private readonly System.Windows.Forms.Timer _hideTimer;
@@ -69,6 +71,18 @@ internal class VolumeOsd : Form
             _hideTimer.Stop();
             Hide();
         };
+    }
+
+    protected override bool ShowWithoutActivation => true;
+
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            var createParams = base.CreateParams;
+            createParams.ExStyle |= WS_EX_NOACTIVATE;
+            return createParams;
+        }
     }
 
     public int DisplayDuration

@@ -8,32 +8,9 @@ A small Windows utility that adjusts system volume using the mouse wheel.
 - On-screen volume indicator (OSD)
 - Optional start with Windows
 
-## Requirements
-- Windows 10 / 11
-- Portable release: no .NET install required
-- Normal release: .NET 8 Windows Desktop Runtime
-
 ## Downloads
-- `WheelVolume-v1.0.0-portable-win-x64.zip`: portable build with the .NET runtime included
-- `WheelVolume-v1.0.0-win-x64.zip`: normal build that requires the .NET 8 Windows Desktop Runtime
-
-## Security Note
-Windows may show a warning when running WheelVolume because the executable is not code-signed. If you are unsure about a download, scan it with a service such as VirusTotal or build the app yourself from the open source code in this repository.
-
-## Build
-From the project root, run:
-
-```powershell
-dotnet build -c Release
-```
-
-Building from source requires the .NET 8 SDK.
-
-## Test
-
-```powershell
-dotnet run --project .\WheelVolume.Tests\WheelVolume.Tests.csproj -c Release
-```
+- [WheelVolume-v1.0.0-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-portable-win-x64.zip): portable build with the .NET runtime included
+- [WheelVolume-v1.0.0-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-win-x64.zip): normal build that requires the .NET 8 Windows Desktop Runtime
 
 ## Usage
 - Hold the configured modifier key and scroll the mouse wheel to change volume.
@@ -55,6 +32,29 @@ If you enable `Start with Windows` from a portable build, extract WheelVolume to
 ![Modifier key menu](docs/screenshots/modifier-key-menu.png)
 
 ![Osd](docs/screenshots/osd.png)
+
+## Requirements
+- Windows 10 / 11
+- Portable release: no .NET install required
+- Normal release: .NET 8 Windows Desktop Runtime
+
+## Security Note
+Windows may show a warning when running WheelVolume because the executable is not code-signed. If you are unsure about a download, scan it with a service such as VirusTotal or build the app yourself from the open source code in this repository.
+
+## Build
+From the project root, run:
+
+```powershell
+dotnet build -c Release
+```
+
+Building from source requires the .NET 8 SDK.
+
+## Test
+
+```powershell
+dotnet run --project .\WheelVolume.Tests\WheelVolume.Tests.csproj -c Release
+```
 
 ## Publish
 

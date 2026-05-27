@@ -1,6 +1,11 @@
 # WheelVolume
 
-A small Windows utility that adjusts system volume using the mouse wheel.
+A tiny Windows tray app that lets you control system volume with your mouse wheel.
+
+Hold Left Alt + scroll to change volume.
+Hold Left Alt + middle-click to mute.
+
+No telemetry. Portable build available.
 
 ## Features
 - Adjust system volume with a modifier key and the mouse wheel
@@ -9,8 +14,8 @@ A small Windows utility that adjusts system volume using the mouse wheel.
 - Optional start with Windows
 
 ## Downloads
-- [WheelVolume-v1.0.0-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-portable-win-x64.zip): portable build with the .NET runtime included
-- [WheelVolume-v1.0.0-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-win-x64.zip): normal build that requires the .NET 8 Windows Desktop Runtime
+- [WheelVolume-v1.0.0-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
+- [WheelVolume-v1.0.0-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
 
 ## Usage
 - Hold the configured modifier key and scroll the mouse wheel to change volume.
@@ -38,8 +43,18 @@ If you enable `Start with Windows` from a portable build, extract WheelVolume to
 - Portable release: no .NET install required
 - Normal release: .NET 8 Windows Desktop Runtime
 
-## Security Note
-Windows may show a warning when running WheelVolume because the executable is not code-signed. If you are unsure about a download, scan it with a service such as VirusTotal or build the app yourself from the open source code in this repository.
+## Security / SmartScreen
+
+WheelVolume is currently unsigned, so Windows SmartScreen may show an "Unknown publisher" warning.
+
+The app:
+- is open source
+- has no telemetry
+- does not require admin rights
+- stores settings locally
+- can be built from source
+
+For extra verification, you can scan the release on VirusTotal or build it yourself.
 
 ## Build
 From the project root, run:
@@ -94,4 +109,4 @@ Or run directly from the build output for quick testing:
 PRs and issues are welcome. Keep changes small and focused.
 
 ## License
-No license specified. Add a `LICENSE` file if you want to set one.
+MIT License. See [LICENSE](LICENSE).

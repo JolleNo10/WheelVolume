@@ -10,6 +10,11 @@
     <AssemblyName>WheelVolume</AssemblyName>
     <RootNamespace>WheelVolume</RootNamespace>
     <Product>WheelVolume</Product>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Authors>JolleNo10</Authors>
+    <RepositoryUrl>https://github.com/JolleNo10/WheelVolume</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

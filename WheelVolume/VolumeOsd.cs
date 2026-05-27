@@ -13,13 +13,17 @@ internal class VolumeOsd : Form
 
     public VolumeOsd()
     {
+        AutoScaleMode = AutoScaleMode.Dpi;
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
         BackColor = Color.FromArgb(30, 30, 30);
         Opacity = 0.9;
-        Size = new Size(260, 80);
+        MinimumSize = new Size(260, 80);
+        AutoSize = true;
+        AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        Padding = new Padding(14, 10, 14, 12);
 
         _label = new Label
         {
@@ -27,20 +31,33 @@ internal class VolumeOsd : Form
             BackColor = Color.Transparent,
             Font = new Font("Segoe UI", 16, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleCenter,
-            Dock = DockStyle.Top,
-            Height = 45
+            AutoSize = false,
+            Size = new Size(232, 38),
+            Margin = new Padding(0, 0, 0, 8)
         };
 
         _bar = new ProgressBar
         {
             Minimum = 0,
             Maximum = 100,
-            Dock = DockStyle.Bottom,
-            Height = 18
+            Size = new Size(232, 18),
+            Margin = new Padding(0)
         };
 
-        Controls.Add(_label);
-        Controls.Add(_bar);
+        var layout = new TableLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+
+        layout.Controls.Add(_label, 0, 0);
+        layout.Controls.Add(_bar, 0, 1);
+        Controls.Add(layout);
 
         _hideTimer = new System.Windows.Forms.Timer
         {

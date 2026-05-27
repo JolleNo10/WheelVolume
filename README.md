@@ -3,12 +3,15 @@
 A small Windows utility that adjusts system volume using the mouse wheel.
 
 ## Features
-- Adjust system volume with the mouse wheel
+- Adjust system volume with a modifier key and the mouse wheel
+- Toggle mute with the modifier key and middle mouse button
 - On-screen volume indicator (OSD)
+- Optional start with Windows
 
 ## Requirements
-- .NET 8 SDK (or newer)
 - Windows 10 / 11
+- Portable release: no .NET install required
+- Normal release: .NET 8 Windows Desktop Runtime
 
 ## Build
 From the project root, run:
@@ -17,10 +20,29 @@ From the project root, run:
 dotnet build -c Release
 ```
 
-## Publish (self-contained x64)
+Building from source requires the .NET 8 SDK.
+
+## Usage
+- Hold the configured modifier key and scroll the mouse wheel to change volume.
+- Hold the configured modifier key and click the middle mouse button to toggle mute.
+- Right-click the tray icon to change settings or exit.
+
+The default modifier key is Left Alt.
+
+If you enable `Start with Windows` from a portable build, extract WheelVolume to its final folder first. Windows stores the exact executable path.
+
+## Publish
+
+Portable release, with the .NET runtime included:
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o ./bin/Release/net8.0-windows/win-x64/publish
+dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-portable-win-x64
+```
+
+Normal release, requiring the .NET 8 Windows Desktop Runtime:
+
+```powershell
+dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
 ```
 
 ## Run
@@ -28,7 +50,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 After building or publishing, run the published executable:
 
 ```powershell
-.\bin\Release\net8.0-windows\win-x64\publish\WheelVolume.exe
+.\release\WheelVolume-win-x64\WheelVolume.exe
 ```
 
 Or run directly from the build output for quick testing:

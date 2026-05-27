@@ -14,6 +14,15 @@ internal static class Program
     [STAThread]
     static void Main()
     {
+        using var singleInstanceMutex = new Mutex(
+            initiallyOwned: true,
+            name: @"Local\WheelVolume",
+            createdNew: out bool isFirstInstance
+        );
+
+        if (!isFirstInstance)
+            return;
+
         ApplicationConfiguration.Initialize();
         Application.Run(new TrayApplicationContext());
     }
@@ -26,6 +35,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private const int WH_MOUSE_LL = 14;
     private const int WM_MOUSEWHEEL = 0x020A;
     private const int WM_MBUTTONDOWN = 0x0207;
+    private const int WHEEL_DELTA = 120;
     private const string StartupRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string StartupRegistryValueName = "WheelVolume";
 
@@ -42,6 +52,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static MMDevice? _audioDevice;
     private static VolumeOsd? _osd;
     private static readonly object _pendingLock = new();
+    private static readonly object _wheelDeltaLock = new();
+    private static int _wheelDeltaRemainder;
     private static int _pendingWheelSteps;
     private static bool _pendingMuteToggle;
     private static bool _processingQueuedInput;
@@ -164,6 +176,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _pendingWheelSteps = 0;
             _pendingMuteToggle = false;
             _processingQueuedInput = false;
+        }
+
+        lock (_wheelDeltaLock)
+        {
+            _wheelDeltaRemainder = 0;
         }
     }
 
@@ -335,8 +352,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
             {
                 var hookStruct = Marshal.PtrToStructure<MSLLHOOKSTRUCT>(lParam);
                 short delta = (short)((hookStruct.mouseData >> 16) & 0xffff);
+                int wheelSteps = GetWheelSteps(delta);
 
-                QueueInput(delta > 0 ? 1 : -1, toggleMute: false);
+                if (wheelSteps != 0)
+                    QueueInput(wheelSteps, toggleMute: false);
 
                 return (IntPtr)1;
             }
@@ -350,6 +369,18 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         return CallNextHookEx(_hookId, nCode, wParam, lParam);
+    }
+
+    private static int GetWheelSteps(short delta)
+    {
+        lock (_wheelDeltaLock)
+        {
+            _wheelDeltaRemainder += delta;
+            int steps = _wheelDeltaRemainder / WHEEL_DELTA;
+            _wheelDeltaRemainder %= WHEEL_DELTA;
+
+            return steps;
+        }
     }
 
     private static ContextMenuStrip BuildTrayMenu()
@@ -533,6 +564,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             using var key = Registry.CurrentUser.OpenSubKey(StartupRegistryPath, writable: true)
                 ?? Registry.CurrentUser.CreateSubKey(StartupRegistryPath, writable: true);
+
+            if (key == null)
+                throw new IOException("The Windows startup registry key could not be opened.");
 
             if (enabled)
                 key.SetValue(StartupRegistryValueName, GetStartupRegistryValue());

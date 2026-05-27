@@ -12,6 +12,7 @@ No telemetry. Portable build available.
 - Toggle mute with the modifier key and middle mouse button
 - On-screen volume indicator (OSD)
 - Optional start with Windows
+- Settings stored locally for the current Windows user
 
 ## Downloads
 - [WheelVolume-v1.0.0-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
@@ -25,6 +26,12 @@ No telemetry. Portable build available.
 The default modifier key is Left Alt.
 
 If you enable `Start with Windows` from a portable build, extract WheelVolume to its final folder first. Windows stores the exact executable path.
+
+Settings are saved locally for the current Windows user in:
+
+```text
+%LOCALAPPDATA%\WheelVolume\settings.json
+```
 
 ## Screenshots
 

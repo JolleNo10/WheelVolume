@@ -95,6 +95,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static readonly object _pendingLock = new();
     private static readonly object _wheelDeltaLock = new();
     private static readonly WheelDeltaAccumulator _wheelDeltaAccumulator = new();
+    private static readonly LocalUserSettings _settings = LocalUserSettings.Load(
+        LocalUserSettings.DefaultPath
+    );
     private static int _pendingWheelSteps;
     private static bool _pendingMuteToggle;
     private static bool _processingQueuedInput;
@@ -109,6 +112,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     public TrayApplicationContext(EventWaitHandle showExistingInstanceEvent)
     {
         _showExistingInstanceEvent = showExistingInstanceEvent;
+        LoadSettings();
 
         _current = this;
         _dispatcher = new Control();
@@ -134,7 +138,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _osd = new VolumeOsd();
         ApplyOsdSettings();
-        SetHookEnabled(_enabled);
+        ApplyHookEnabled(_enabled);
     }
 
     protected override void ExitThreadCore()
@@ -188,7 +192,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static void SetHookEnabled(bool enabled)
     {
         _enabled = enabled;
+        SaveSettings();
+        ApplyHookEnabled(enabled);
+    }
 
+    private static void ApplyHookEnabled(bool enabled)
+    {
         if (enabled)
         {
             InstallHook();
@@ -213,6 +222,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _enabled = false;
         if (_enabledMenuItem != null)
             _enabledMenuItem.Checked = false;
+        SaveSettings();
 
         _trayIcon?.ShowBalloonTip(
             5000,
@@ -482,9 +492,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         var menu = new ToolStripMenuItem("Volume Step");
 
-        AddRadioMenuItem(menu, "1%", _volumeStep == 0.01f, () => _volumeStep = 0.01f);
-        AddRadioMenuItem(menu, "2%", _volumeStep == 0.02f, () => _volumeStep = 0.02f);
-        AddRadioMenuItem(menu, "5%", _volumeStep == 0.05f, () => _volumeStep = 0.05f);
+        AddRadioMenuItem(menu, "1%", _volumeStep == 0.01f, () => SetVolumeStep(0.01f));
+        AddRadioMenuItem(menu, "2%", _volumeStep == 0.02f, () => SetVolumeStep(0.02f));
+        AddRadioMenuItem(menu, "5%", _volumeStep == 0.05f, () => SetVolumeStep(0.05f));
 
         return menu;
     }
@@ -529,31 +539,31 @@ internal sealed class TrayApplicationContext : ApplicationContext
             menu,
             "Left Alt",
             _modifierKey == ModifierKey.LeftAlt,
-            () => _modifierKey = ModifierKey.LeftAlt
+            () => SetModifierKey(ModifierKey.LeftAlt)
         );
         AddRadioMenuItem(
             menu,
             "Either Alt",
             _modifierKey == ModifierKey.EitherAlt,
-            () => _modifierKey = ModifierKey.EitherAlt
+            () => SetModifierKey(ModifierKey.EitherAlt)
         );
         AddRadioMenuItem(
             menu,
             "Ctrl",
             _modifierKey == ModifierKey.Ctrl,
-            () => _modifierKey = ModifierKey.Ctrl
+            () => SetModifierKey(ModifierKey.Ctrl)
         );
         AddRadioMenuItem(
             menu,
             "Shift",
             _modifierKey == ModifierKey.Shift,
-            () => _modifierKey = ModifierKey.Shift
+            () => SetModifierKey(ModifierKey.Shift)
         );
         AddRadioMenuItem(
             menu,
             "Win",
             _modifierKey == ModifierKey.Win,
-            () => _modifierKey = ModifierKey.Win
+            () => SetModifierKey(ModifierKey.Win)
         );
 
         return menu;
@@ -587,12 +597,26 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         _osdTimeoutMs = timeoutMs;
         ApplyOsdSettings();
+        SaveSettings();
     }
 
     private static void SetOsdScreenMode(OsdScreenMode mode)
     {
         _osdScreenMode = mode;
         ApplyOsdSettings();
+        SaveSettings();
+    }
+
+    private static void SetVolumeStep(float volumeStep)
+    {
+        _volumeStep = volumeStep;
+        SaveSettings();
+    }
+
+    private static void SetModifierKey(ModifierKey modifierKey)
+    {
+        _modifierKey = modifierKey;
+        SaveSettings();
     }
 
     private static void ApplyOsdSettings()
@@ -602,6 +626,49 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         _osd.DisplayDuration = _osdTimeoutMs;
         _osd.ScreenMode = _osdScreenMode;
+    }
+
+    private static void LoadSettings()
+    {
+        _enabled = _settings.Enabled;
+        _volumeStep = NormalizeVolumeStep(_settings.VolumeStep);
+        _osdTimeoutMs = NormalizeOsdTimeout(_settings.OsdTimeoutMs);
+        _osdScreenMode = ParseEnum(_settings.OsdScreenMode, OsdScreenMode.Cursor);
+        _modifierKey = ParseEnum(_settings.ModifierKey, ModifierKey.LeftAlt);
+    }
+
+    private static void SaveSettings()
+    {
+        _settings.Enabled = _enabled;
+        _settings.VolumeStep = _volumeStep;
+        _settings.OsdTimeoutMs = _osdTimeoutMs;
+        _settings.OsdScreenMode = _osdScreenMode.ToString();
+        _settings.ModifierKey = _modifierKey.ToString();
+        _settings.Save(LocalUserSettings.DefaultPath);
+    }
+
+    private static float NormalizeVolumeStep(float volumeStep)
+    {
+        return volumeStep switch
+        {
+            0.01f or 0.02f or 0.05f => volumeStep,
+            _ => DefaultVolumeStep
+        };
+    }
+
+    private static int NormalizeOsdTimeout(int timeoutMs)
+    {
+        return timeoutMs switch
+        {
+            500 or 700 or 1200 or 2000 => timeoutMs,
+            _ => DefaultOsdTimeoutMs
+        };
+    }
+
+    private static TEnum ParseEnum<TEnum>(string value, TEnum fallback)
+        where TEnum : struct
+    {
+        return Enum.TryParse(value, ignoreCase: true, out TEnum parsed) ? parsed : fallback;
     }
 
     private static void SetStartOnStartup(bool enabled)

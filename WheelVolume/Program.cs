@@ -363,7 +363,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
         _enabledMenuItem.CheckedChanged += (_, _) => SetHookEnabled(_enabledMenuItem.Checked);
 
-        _startOnStartupMenuItem = new ToolStripMenuItem("Start on Startup")
+        _startOnStartupMenuItem = new ToolStripMenuItem("Start with Windows")
         {
             Checked = IsStartOnStartupEnabled(),
             CheckOnClick = true

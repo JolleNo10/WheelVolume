@@ -174,6 +174,95 @@ function Assert-CleanWorkingTree {
     }
 }
 
+function Test-WorkingTreeHasChanges {
+    param(
+        [string[]]$Paths
+    )
+
+    if ($DryRun) {
+        return $false
+    }
+
+    $arguments = @("status", "--porcelain", "--")
+    $arguments += $Paths
+    $status = & git @arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not check working tree changes."
+    }
+
+    return -not [string]::IsNullOrWhiteSpace(($status -join "`n"))
+}
+
+function Set-XmlElementText {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Content,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ElementName,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    $pattern = "(<$ElementName>)[^<]*(</$ElementName>)"
+    if ($Content -notmatch $pattern) {
+        throw "Could not find <$ElementName> in project file."
+    }
+
+    return [regex]::Replace($Content, $pattern, "`$1$Value`$2", 1)
+}
+
+function Update-ReleaseVersionFiles {
+    param(
+        [string]$ProjectPath,
+        [string]$ReadmePath,
+        [string]$Version
+    )
+
+    Write-Host "Updating release version files for v$Version"
+
+    if ($DryRun) {
+        Write-Host ">Update $ProjectPath VersionPrefix/AssemblyVersion/FileVersion to $Version"
+        Write-Host ">Update $ReadmePath release links and publish version examples to v$Version"
+        return
+    }
+
+    $project = Get-Content -LiteralPath $ProjectPath -Raw
+    $project = Set-XmlElementText -Content $project -ElementName "VersionPrefix" -Value $Version
+    $project = Set-XmlElementText -Content $project -ElementName "AssemblyVersion" -Value "$Version.0"
+    $project = Set-XmlElementText -Content $project -ElementName "FileVersion" -Value "$Version.0"
+    Set-Content -LiteralPath $ProjectPath -Value $project -NoNewline
+
+    $readme = Get-Content -LiteralPath $ReadmePath -Raw
+    $readme = [regex]::Replace($readme, 'WheelVolume-v\d+\.\d+\.\d+-portable-win-x64\.zip', "WheelVolume-v$Version-portable-win-x64.zip")
+    $readme = [regex]::Replace($readme, 'WheelVolume-v\d+\.\d+\.\d+-win-x64\.zip', "WheelVolume-v$Version-win-x64.zip")
+    $readme = [regex]::Replace($readme, '/releases/download/v\d+\.\d+\.\d+/', "/releases/download/v$Version/")
+    $readme = [regex]::Replace($readme, '-p:Version=\d+\.\d+\.\d+', "-p:Version=$Version")
+    $readme = [regex]::Replace($readme, '-p:FileVersion=\d+\.\d+\.\d+\.0', "-p:FileVersion=$Version.0")
+    Set-Content -LiteralPath $ReadmePath -Value $readme -NoNewline
+}
+
+function Commit-AndPushReleaseVersionFiles {
+    param(
+        [string]$ProjectPath,
+        [string]$ReadmePath,
+        [string]$Version,
+        [string]$Remote,
+        [string]$Branch
+    )
+
+    $paths = @($ProjectPath, $ReadmePath)
+    if (-not (Test-WorkingTreeHasChanges -Paths $paths)) {
+        Write-Host "Release version files are already up to date."
+        return
+    }
+
+    Invoke-CheckedCommand -FilePath "git" -Arguments @("add", "--", $ProjectPath, $ReadmePath)
+    Invoke-CheckedCommand -FilePath "git" -Arguments @("commit", "-m", "Prepare v$Version release version files")
+    Invoke-CheckedCommand -FilePath "git" -Arguments @("push", "-u", $Remote, $Branch)
+}
+
 function Test-LocalTagExists {
     param(
         [Parameter(Mandatory = $true)]
@@ -413,12 +502,15 @@ if ($Mode -eq "Prepare") {
     }
 
     Assert-ReleaseDoesNotExist -TagName $tagName -Remote $Remote
+    Update-ReleaseVersionFiles -ProjectPath $projectPath -ReadmePath $readmePath -Version $releaseVersion
     Assert-ReleaseVersionIsSet -ProjectPath $projectPath -ReadmePath $readmePath -Version $releaseVersion
 
     if (-not (Read-YesNo "Prepare release $tagName from branch $currentBranch into $MainBranch?")) {
         throw "Release preparation cancelled."
     }
 
+    Commit-AndPushReleaseVersionFiles -ProjectPath $projectPath -ReadmePath $readmePath -Version $releaseVersion -Remote $Remote -Branch $currentBranch
+    Assert-CleanWorkingTree
     Invoke-ReleaseChecks
     Invoke-CheckedCommand -FilePath "git" -Arguments @("push", "-u", $Remote, $currentBranch)
 

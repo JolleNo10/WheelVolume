@@ -12,10 +12,11 @@ No telemetry. Portable build available.
 - Toggle mute with the modifier key and middle mouse button
 - On-screen volume indicator (OSD)
 - Optional start with Windows
+- Settings stored locally for the current Windows user
 
 ## Downloads
-- [WheelVolume-v1.0.0-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
-- [WheelVolume-v1.0.0-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
+- [WheelVolume-v1.0.1-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
+- [WheelVolume-v1.0.1-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
 
 ## Usage
 - Hold the configured modifier key and scroll the mouse wheel to change volume.
@@ -25,6 +26,12 @@ No telemetry. Portable build available.
 The default modifier key is Left Alt.
 
 If you enable `Start with Windows` from a portable build, extract WheelVolume to its final folder first. Windows stores the exact executable path.
+
+Settings are saved locally for the current Windows user in:
+
+```text
+%LOCALAPPDATA%\WheelVolume\settings.json
+```
 
 ## Screenshots
 
@@ -73,6 +80,8 @@ dotnet run --project .\WheelVolume.Tests\WheelVolume.Tests.csproj -c Release
 
 ## Publish
 
+For tagged GitHub releases, use the scripted workflow in [scripts/RELEASE.md](scripts/RELEASE.md).
+
 Portable release, with the .NET runtime included:
 
 ```powershell
@@ -90,6 +99,18 @@ For a different release version, override version metadata on both publish comma
 ```powershell
 dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:Version=1.0.1 -p:FileVersion=1.0.1.0 -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
 ```
+
+## Release prep
+
+Use the release prep script to bump versions, update release links, run checks, build artifacts, commit, tag, and optionally publish the GitHub release:
+
+```powershell
+.\scripts\prepare-release.ps1
+```
+
+The script asks whether to use a specific next version number, major, minor, patch, or prerelease. Stable releases must be prepared from `main`. Prereleases can be prepared from another branch.
+
+After the release, the script switches back to `main`, creates the next patch release branch as `release/x.x.x`, and switches to it. Add `-DryRun` to preview the work, `-Push` to push the commit and tag, and `-CreateGitHubRelease` to create the GitHub release with the generated zip files.
 
 ## Run
 

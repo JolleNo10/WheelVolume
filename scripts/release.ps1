@@ -458,8 +458,8 @@ function Publish-ReleaseArtifacts {
         Remove-Item -LiteralPath $portableDir, $runtimeDir, $portableZip, $runtimeZip, $checksumsPath -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("publish", ".\WheelVolume\WheelVolume.csproj", "-c", "Release", "-r", "win-x64", "--self-contained", "true", "-p:Version=$ReleaseVersion", "-p:FileVersion=$ReleaseVersion.0", "-p:PublishSingleFile=true", "-p:DebugType=None", "-p:DebugSymbols=false", "-o", $portableDir)
-    Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("publish", ".\WheelVolume\WheelVolume.csproj", "-c", "Release", "-r", "win-x64", "--self-contained", "false", "-p:Version=$ReleaseVersion", "-p:FileVersion=$ReleaseVersion.0", "-p:PublishSingleFile=true", "-p:DebugType=None", "-p:DebugSymbols=false", "-o", $runtimeDir)
+    Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("publish", ".\WheelVolume\WheelVolume.csproj", "-c", "Release", "-r", "win-x64", "--self-contained", "true", "-p:Version=$ReleaseVersion", "-p:FileVersion=$ReleaseVersion.0", "-p:PublishSingleFile=true", "-p:DebugType=None", "-p:DebugSymbols=false", "-o", $portableDir) | Out-Host
+    Invoke-CheckedCommand -FilePath "dotnet" -Arguments @("publish", ".\WheelVolume\WheelVolume.csproj", "-c", "Release", "-r", "win-x64", "--self-contained", "false", "-p:Version=$ReleaseVersion", "-p:FileVersion=$ReleaseVersion.0", "-p:PublishSingleFile=true", "-p:DebugType=None", "-p:DebugSymbols=false", "-o", $runtimeDir) | Out-Host
 
     if ($DryRun) {
         Write-Host ">Compress-Archive $portableDir -> $portableZip"

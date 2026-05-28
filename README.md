@@ -80,6 +80,8 @@ dotnet run --project .\WheelVolume.Tests\WheelVolume.Tests.csproj -c Release
 
 ## Publish
 
+For tagged GitHub releases, use the scripted workflow in [scripts/RELEASE.md](scripts/RELEASE.md).
+
 Portable release, with the .NET runtime included:
 
 ```powershell

@@ -10,6 +10,12 @@ The release script has two modes:
 
 The script requires GitHub CLI (`gh`) authenticated for this repository.
 
+Useful options:
+
+- `-DryRun`: prints the release commands without making changes where the script supports it
+- `-SkipTests`: skips the test run, but still runs the release build check
+- `-SkipBuild`: publish mode only; skips artifact publishing and uploads, but still runs the release build check
+
 ### 1. Prepare the release
 
 Create and switch to a release branch named `release/x.x.x`, for example:
@@ -41,7 +47,8 @@ The `Prepare` step:
 - verifies the version is higher than `main`
 - checks that `WheelVolume.csproj` and `README.md` already match the release version
 - checks that the tag and GitHub release do not already exist
-- runs tests and build, unless skipped
+- runs tests unless `-SkipTests` is used
+- runs the release build check
 - pushes the release branch
 - creates or reuses a pull request from `release/x.x.x` into `main`
 - prints the pull request link
@@ -69,11 +76,12 @@ The `Publish` step:
 - switches to `main`
 - pulls the latest version of `main`
 - verifies that `WheelVolume.csproj` and `README.md` still match the release version
-- runs tests and build again, unless skipped
-- publishes release artifacts
-- creates `SHA256SUMS.txt`
+- runs tests again unless `-SkipTests` is used
+- runs the release build check again
+- publishes release artifacts unless `-SkipBuild` is used
+- creates `SHA256SUMS.txt` unless `-SkipBuild` is used
 - creates and pushes the Git tag `vx.x.x`
 - creates the GitHub release
-- uploads the generated release artifacts
+- uploads the generated release artifacts unless `-SkipBuild` is used
 
 The release tag is created only after the release branch has been merged into `main`.

@@ -15,8 +15,8 @@ No telemetry. Portable build available.
 - Settings stored locally for the current Windows user
 
 ## Downloads
-- [WheelVolume-v1.0.0-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
-- [WheelVolume-v1.0.0-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.0/WheelVolume-v1.0.0-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
+- [WheelVolume-v1.0.1-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
+- [WheelVolume-v1.0.1-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
 
 ## Usage
 - Hold the configured modifier key and scroll the mouse wheel to change volume.

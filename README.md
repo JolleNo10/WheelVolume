@@ -14,9 +14,35 @@ No telemetry. Portable build available.
 - Optional start with Windows
 - Settings stored locally for the current Windows user
 
+
+## Screenshots
+
+![Volume step menu](docs/screenshots/volume-step-menu.png)
+
+![OSD timeout menu](docs/screenshots/osd-settings-menus.png)
+
+![OSD screen menu](docs/screenshots/osd-screen-menu.png)
+
+![Modifier key menu](docs/screenshots/modifier-key-menu.png)
+
+![Osd](docs/screenshots/osd.png)
+
 ## Downloads
 - [WheelVolume-v1.0.1-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
 - [WheelVolume-v1.0.1-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
+
+## Security / SmartScreen
+
+WheelVolume is currently unsigned, so Windows SmartScreen may show an "Unknown publisher" warning.
+
+The app:
+- is open source
+- has no telemetry
+- does not require admin rights
+- stores settings locally
+- can be built from source
+
+For extra verification, you can scan the release on VirusTotal or build it yourself.
 
 ## Usage
 - Hold the configured modifier key and scroll the mouse wheel to change volume.
@@ -33,35 +59,10 @@ Settings are saved locally for the current Windows user in:
 %LOCALAPPDATA%\WheelVolume\settings.json
 ```
 
-## Screenshots
-
-![Volume step menu](docs/screenshots/volume-step-menu.png)
-
-![OSD timeout menu](docs/screenshots/osd-settings-menus.png)
-
-![OSD screen menu](docs/screenshots/osd-screen-menu.png)
-
-![Modifier key menu](docs/screenshots/modifier-key-menu.png)
-
-![Osd](docs/screenshots/osd.png)
-
 ## Requirements
 - Windows 10 / 11
 - Portable release: no .NET install required
 - Normal release: .NET 8 Windows Desktop Runtime
-
-## Security / SmartScreen
-
-WheelVolume is currently unsigned, so Windows SmartScreen may show an "Unknown publisher" warning.
-
-The app:
-- is open source
-- has no telemetry
-- does not require admin rights
-- stores settings locally
-- can be built from source
-
-For extra verification, you can scan the release on VirusTotal or build it yourself.
 
 ## Build
 From the project root, run:

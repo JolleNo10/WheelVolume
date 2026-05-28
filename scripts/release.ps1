@@ -210,7 +210,29 @@ function Set-XmlElementText {
         throw "Could not find <$ElementName> in project file."
     }
 
-    return [regex]::Replace($Content, $pattern, "`$1$Value`$2", 1)
+    return [regex]::Replace(
+        $Content,
+        $pattern,
+        {
+            param($match)
+            "$($match.Groups[1].Value)$Value$($match.Groups[2].Value)"
+        },
+        1)
+}
+
+function Set-TextFileContentPreservingUtf8Bom {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Content
+    )
+
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xef -and $bytes[1] -eq 0xbb -and $bytes[2] -eq 0xbf
+    $encoding = New-Object System.Text.UTF8Encoding($hasBom)
+    [System.IO.File]::WriteAllText($Path, $Content, $encoding)
 }
 
 function Update-ReleaseVersionFiles {
@@ -232,7 +254,7 @@ function Update-ReleaseVersionFiles {
     $project = Set-XmlElementText -Content $project -ElementName "VersionPrefix" -Value $Version
     $project = Set-XmlElementText -Content $project -ElementName "AssemblyVersion" -Value "$Version.0"
     $project = Set-XmlElementText -Content $project -ElementName "FileVersion" -Value "$Version.0"
-    Set-Content -LiteralPath $ProjectPath -Value $project -NoNewline
+    Set-TextFileContentPreservingUtf8Bom -Path $ProjectPath -Content $project
 
     $readme = Get-Content -LiteralPath $ReadmePath -Raw
     $readme = [regex]::Replace($readme, 'WheelVolume-v\d+\.\d+\.\d+-portable-win-x64\.zip', "WheelVolume-v$Version-portable-win-x64.zip")
@@ -240,7 +262,7 @@ function Update-ReleaseVersionFiles {
     $readme = [regex]::Replace($readme, '/releases/download/v\d+\.\d+\.\d+/', "/releases/download/v$Version/")
     $readme = [regex]::Replace($readme, '-p:Version=\d+\.\d+\.\d+', "-p:Version=$Version")
     $readme = [regex]::Replace($readme, '-p:FileVersion=\d+\.\d+\.\d+\.0', "-p:FileVersion=$Version.0")
-    Set-Content -LiteralPath $ReadmePath -Value $readme -NoNewline
+    Set-TextFileContentPreservingUtf8Bom -Path $ReadmePath -Content $readme
 }
 
 function Commit-AndPushReleaseVersionFiles {

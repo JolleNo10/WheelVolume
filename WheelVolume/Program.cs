@@ -268,6 +268,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         catch (Exception ex) when (ex is COMException or InvalidOperationException)
         {
             _audioDevice = null;
+            LogAudioFailure("RefreshAudioDevice", ex);
 
             if (showError && ShouldShowAudioErrorNotification())
             {
@@ -317,8 +318,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
             int percent = (int)Math.Round(newVolume * 100);
             _osd?.ShowVolume(percent, volume.Mute);
         }
-        catch (COMException)
+        catch (COMException ex)
         {
+            LogAudioFailure("ChangeVolume", ex);
+
             if (retryOnDeviceError && RefreshAudioDevice(showError: true))
                 ChangeVolume(wheelSteps, retryOnDeviceError: false);
         }
@@ -337,10 +340,32 @@ internal sealed class TrayApplicationContext : ApplicationContext
             int percent = (int)Math.Round(volume.MasterVolumeLevelScalar * 100);
             _osd?.ShowVolume(percent, volume.Mute);
         }
-        catch (COMException)
+        catch (COMException ex)
         {
+            LogAudioFailure("ToggleMute", ex);
+
             if (retryOnDeviceError && RefreshAudioDevice(showError: true))
                 ToggleMute(retryOnDeviceError: false);
+        }
+    }
+
+    private static void LogAudioFailure(string operation, Exception ex)
+    {
+        try
+        {
+            string message =
+                $"[{DateTimeOffset.Now:O}] {operation} failed: {ex.GetType().Name} 0x{ex.HResult:X8} {ex.Message}";
+
+            Trace.WriteLine(message);
+
+            string settingsDirectory =
+                Path.GetDirectoryName(LocalUserSettings.DefaultPath)
+                ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            Directory.CreateDirectory(settingsDirectory);
+            File.AppendAllText(Path.Combine(settingsDirectory, "audio-errors.log"), message + Environment.NewLine);
+        }
+        catch
+        {
         }
     }
 

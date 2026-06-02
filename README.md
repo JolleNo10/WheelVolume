@@ -53,7 +53,7 @@ The default modifier key is Left Alt.
 
 If you enable `Start with Windows` from a portable build, extract WheelVolume to its final folder first. Windows stores the exact executable path.
 
-Settings are saved locally for the current Windows user in:
+Settings are saved for the current Windows user in:
 
 ```text
 %LOCALAPPDATA%\WheelVolume\settings.json

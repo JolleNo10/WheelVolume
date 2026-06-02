@@ -28,8 +28,8 @@ No telemetry. Portable build available.
 ![Osd](docs/screenshots/osd.png)
 
 ## Downloads
-- [WheelVolume-v1.0.1-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
-- [WheelVolume-v1.0.1-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.1/WheelVolume-v1.0.1-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
+- [WheelVolume-v1.0.2-portable-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.2/WheelVolume-v1.0.2-portable-win-x64.zip): Portable build. No installation and no separate .NET install required.
+- [WheelVolume-v1.0.2-win-x64.zip](https://github.com/JolleNo10/WheelVolume/releases/download/v1.0.2/WheelVolume-v1.0.2-win-x64.zip): Smaller build, but requires the .NET 8 Windows Desktop Runtime.
 
 ## Security / SmartScreen
 
@@ -53,7 +53,7 @@ The default modifier key is Left Alt.
 
 If you enable `Start with Windows` from a portable build, extract WheelVolume to its final folder first. Windows stores the exact executable path.
 
-Settings are saved locally for the current Windows user in:
+Settings are saved for the current Windows user in:
 
 ```text
 %LOCALAPPDATA%\WheelVolume\settings.json
@@ -98,7 +98,7 @@ dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-con
 For a different release version, override version metadata on both publish commands:
 
 ```powershell
-dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:Version=1.0.1 -p:FileVersion=1.0.1.0 -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
+dotnet publish .\WheelVolume\WheelVolume.csproj -c Release -r win-x64 --self-contained false -p:Version=1.0.2 -p:FileVersion=1.0.2.0 -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o .\release\WheelVolume-win-x64
 ```
 
 ## Run

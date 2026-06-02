@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using NAudio.CoreAudioApi;
@@ -67,6 +68,128 @@ internal static class Program
         }
 
         return false;
+    }
+}
+
+internal sealed class AboutDialog : Form
+{
+    private const string FallbackRepositoryUrl = "https://github.com/JolleNo10/WheelVolume";
+
+    public AboutDialog()
+    {
+        var assembly = typeof(Program).Assembly;
+        string productName = GetAssemblyAttribute<AssemblyProductAttribute>(assembly)?.Product
+            ?? "WheelVolume";
+        string version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+            ?? Application.ProductVersion;
+        string repositoryUrl = GetRepositoryUrl(assembly);
+
+        Text = $"About {productName}";
+        StartPosition = FormStartPosition.CenterScreen;
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        MinimizeBox = false;
+        ShowIcon = true;
+        ShowInTaskbar = false;
+        ClientSize = new Size(420, 210);
+
+        var titleLabel = new Label
+        {
+            AutoSize = true,
+            Font = new Font(Font, FontStyle.Bold),
+            Text = productName
+        };
+
+        var versionLabel = new Label
+        {
+            AutoSize = true,
+            Text = $"Version {version}"
+        };
+
+        var descriptionLabel = new Label
+        {
+            AutoSize = false,
+            Dock = DockStyle.Fill,
+            Text = "Adjust Windows volume with a modifier key and the mouse wheel. Middle-click with the modifier toggles mute."
+        };
+
+        var repositoryLink = new LinkLabel
+        {
+            AutoSize = true,
+            Text = repositoryUrl,
+            LinkArea = new LinkArea(0, repositoryUrl.Length)
+        };
+        repositoryLink.LinkClicked += (_, _) => OpenRepository(repositoryUrl);
+
+        var okButton = new Button
+        {
+            Anchor = AnchorStyles.Right,
+            AutoSize = true,
+            DialogResult = DialogResult.OK,
+            Text = "OK"
+        };
+
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(16),
+            RowCount = 5,
+            ColumnCount = 1
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(titleLabel, 0, 0);
+        layout.Controls.Add(versionLabel, 0, 1);
+        layout.Controls.Add(descriptionLabel, 0, 2);
+        layout.Controls.Add(repositoryLink, 0, 3);
+        layout.Controls.Add(okButton, 0, 4);
+
+        AcceptButton = okButton;
+        CancelButton = okButton;
+        Controls.Add(layout);
+    }
+
+    private static TAttribute? GetAssemblyAttribute<TAttribute>(Assembly assembly)
+        where TAttribute : Attribute
+    {
+        return assembly.GetCustomAttribute<TAttribute>();
+    }
+
+    private static string GetRepositoryUrl(Assembly assembly)
+    {
+        var repositoryUrl = assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => attribute.Key == "RepositoryUrl")
+            ?.Value;
+
+        return string.IsNullOrWhiteSpace(repositoryUrl)
+            ? FallbackRepositoryUrl
+            : repositoryUrl;
+    }
+
+    private static void OpenRepository(string repositoryUrl)
+    {
+        try
+        {
+            Process.Start(
+                new ProcessStartInfo(repositoryUrl)
+                {
+                    UseShellExecute = true
+                }
+            );
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            MessageBox.Show(
+                $"Could not open repository link.{Environment.NewLine}{repositoryUrl}",
+                "WheelVolume",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+        }
     }
 }
 
@@ -268,6 +391,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         catch (Exception ex) when (ex is COMException or InvalidOperationException)
         {
             _audioDevice = null;
+            LogAudioFailure("RefreshAudioDevice", ex);
 
             if (showError && ShouldShowAudioErrorNotification())
             {
@@ -317,8 +441,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
             int percent = (int)Math.Round(newVolume * 100);
             _osd?.ShowVolume(percent, volume.Mute);
         }
-        catch (COMException)
+        catch (COMException ex)
         {
+            LogAudioFailure("ChangeVolume", ex);
+
             if (retryOnDeviceError && RefreshAudioDevice(showError: true))
                 ChangeVolume(wheelSteps, retryOnDeviceError: false);
         }
@@ -337,10 +463,32 @@ internal sealed class TrayApplicationContext : ApplicationContext
             int percent = (int)Math.Round(volume.MasterVolumeLevelScalar * 100);
             _osd?.ShowVolume(percent, volume.Mute);
         }
-        catch (COMException)
+        catch (COMException ex)
         {
+            LogAudioFailure("ToggleMute", ex);
+
             if (retryOnDeviceError && RefreshAudioDevice(showError: true))
                 ToggleMute(retryOnDeviceError: false);
+        }
+    }
+
+    private static void LogAudioFailure(string operation, Exception ex)
+    {
+        try
+        {
+            string message =
+                $"[{DateTimeOffset.Now:O}] {operation} failed: {ex.GetType().Name} 0x{ex.HResult:X8} {ex.Message}";
+
+            Trace.WriteLine(message);
+
+            string settingsDirectory =
+                Path.GetDirectoryName(LocalUserSettings.DefaultPath)
+                ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            Directory.CreateDirectory(settingsDirectory);
+            File.AppendAllText(Path.Combine(settingsDirectory, "audio-errors.log"), message + Environment.NewLine);
+        }
+        catch
+        {
         }
     }
 
@@ -483,9 +631,17 @@ internal sealed class TrayApplicationContext : ApplicationContext
         menu.Items.Add(_startOnStartupMenuItem);
         menu.Items.Add(settingsMenu);
         menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("About WheelVolume", null, (_, _) => ShowAboutDialog());
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Exit", null, (_, _) => _current?.ExitThread());
 
         return menu;
+    }
+
+    private static void ShowAboutDialog()
+    {
+        using var aboutDialog = new AboutDialog();
+        aboutDialog.ShowDialog();
     }
 
     private static ToolStripMenuItem BuildVolumeStepMenu()

@@ -405,27 +405,30 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (wheelSteps == 0)
             return;
 
-        try
-        {
-            AudioState state = GetAudioController().ChangeVolume(wheelSteps, _volumeStep);
-            _osd?.ShowVolume(state.VolumePercent, state.Muted);
-        }
-        catch (Exception ex) when (ex is COMException or InvalidOperationException)
-        {
-            HandleAudioFailure("ChangeVolume", ex);
-        }
+        ExecuteAudioOperation(
+            "ChangeVolume",
+            controller => controller.ChangeVolume(wheelSteps, _volumeStep)
+        );
     }
 
     private static void ToggleMute()
     {
+        ExecuteAudioOperation("ToggleMute", controller => controller.ToggleMute());
+    }
+
+    private static void ExecuteAudioOperation(
+        string operation,
+        Func<AudioController, AudioState> action
+    )
+    {
         try
         {
-            AudioState state = GetAudioController().ToggleMute();
+            AudioState state = action(GetAudioController());
             _osd?.ShowVolume(state.VolumePercent, state.Muted);
         }
         catch (Exception ex) when (ex is COMException or InvalidOperationException)
         {
-            HandleAudioFailure("ToggleMute", ex);
+            HandleAudioFailure(operation, ex);
         }
     }
 

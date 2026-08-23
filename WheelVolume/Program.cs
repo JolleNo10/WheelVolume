@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using NAudio.CoreAudioApi;
 
 namespace WheelVolume;
 
@@ -213,7 +212,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private static ToolStripMenuItem? _enabledMenuItem;
     private static ToolStripMenuItem? _startOnStartupMenuItem;
     private static Icon? _appIcon;
-    private static MMDevice? _audioDevice;
+    private static AudioController? _audioController;
     private static VolumeOsd? _osd;
     private static readonly object _pendingLock = new();
     private static readonly object _wheelDeltaLock = new();
@@ -290,8 +289,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _enabledMenuItem = null;
         _startOnStartupMenuItem = null;
 
-        _audioDevice?.Dispose();
-        _audioDevice = null;
+        _audioController?.Dispose();
+        _audioController = null;
 
         _appIcon?.Dispose();
         _appIcon = null;
@@ -379,34 +378,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
     }
 
-    private static bool RefreshAudioDevice(bool showError)
-    {
-        try
-        {
-            _audioDevice?.Dispose();
-            using var enumerator = new MMDeviceEnumerator();
-            _audioDevice = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-            return true;
-        }
-        catch (Exception ex) when (ex is COMException or InvalidOperationException)
-        {
-            _audioDevice = null;
-            LogAudioFailure("RefreshAudioDevice", ex);
-
-            if (showError && ShouldShowAudioErrorNotification())
-            {
-                _trayIcon?.ShowBalloonTip(
-                    5000,
-                    "WheelVolume",
-                    "No active playback device was found.",
-                    ToolTipIcon.Warning
-                );
-            }
-
-            return false;
-        }
-    }
-
     private static bool ShouldShowAudioErrorNotification()
     {
         var now = DateTime.UtcNow;
@@ -418,57 +389,59 @@ internal sealed class TrayApplicationContext : ApplicationContext
         return true;
     }
 
-    private static void ChangeVolume(int wheelSteps, bool retryOnDeviceError = true)
+    private static AudioController GetAudioController()
+    {
+        return _audioController ??= new AudioController(new NAudioEndpointProvider());
+    }
+
+    private static void ResetAudioController()
+    {
+        _audioController?.Dispose();
+        _audioController = null;
+    }
+
+    private static void ChangeVolume(int wheelSteps)
     {
         if (wheelSteps == 0)
             return;
 
-        if (_audioDevice == null && !RefreshAudioDevice(showError: true))
-            return;
-
         try
         {
-            var volume = _audioDevice!.AudioEndpointVolume;
-
-            float newVolume = Math.Clamp(
-                volume.MasterVolumeLevelScalar + (wheelSteps * _volumeStep),
-                0.0f,
-                1.0f
-            );
-
-            volume.MasterVolumeLevelScalar = newVolume;
-
-            int percent = (int)Math.Round(newVolume * 100);
-            _osd?.ShowVolume(percent, volume.Mute);
+            AudioState state = GetAudioController().ChangeVolume(wheelSteps, _volumeStep);
+            _osd?.ShowVolume(state.VolumePercent, state.Muted);
         }
-        catch (COMException ex)
+        catch (Exception ex) when (ex is COMException or InvalidOperationException)
         {
-            LogAudioFailure("ChangeVolume", ex);
-
-            if (retryOnDeviceError && RefreshAudioDevice(showError: true))
-                ChangeVolume(wheelSteps, retryOnDeviceError: false);
+            HandleAudioFailure("ChangeVolume", ex);
         }
     }
 
-    private static void ToggleMute(bool retryOnDeviceError = true)
+    private static void ToggleMute()
     {
-        if (_audioDevice == null && !RefreshAudioDevice(showError: true))
-            return;
-
         try
         {
-            var volume = _audioDevice!.AudioEndpointVolume;
-            volume.Mute = !volume.Mute;
-
-            int percent = (int)Math.Round(volume.MasterVolumeLevelScalar * 100);
-            _osd?.ShowVolume(percent, volume.Mute);
+            AudioState state = GetAudioController().ToggleMute();
+            _osd?.ShowVolume(state.VolumePercent, state.Muted);
         }
-        catch (COMException ex)
+        catch (Exception ex) when (ex is COMException or InvalidOperationException)
         {
-            LogAudioFailure("ToggleMute", ex);
+            HandleAudioFailure("ToggleMute", ex);
+        }
+    }
 
-            if (retryOnDeviceError && RefreshAudioDevice(showError: true))
-                ToggleMute(retryOnDeviceError: false);
+    private static void HandleAudioFailure(string operation, Exception ex)
+    {
+        LogAudioFailure(operation, ex);
+        ResetAudioController();
+
+        if (ShouldShowAudioErrorNotification())
+        {
+            _trayIcon?.ShowBalloonTip(
+                5000,
+                "WheelVolume",
+                "No active playback device was found.",
+                ToolTipIcon.Warning
+            );
         }
     }
 

@@ -11,6 +11,7 @@ var tests = new (string Name, Action Run)[]
     ("Local user settings ignore corrupt file", LocalUserSettingsIgnoreCorruptFile),
     ("Local user settings ignore oversized file", LocalUserSettingsIgnoreOversizedFile),
     ("Local user settings save cleans up temp files", LocalUserSettingsSaveCleansUpTempFiles),
+    ("Audio controller follows a changed default endpoint", AudioControllerFollowsChangedDefaultEndpoint),
 };
 
 var failures = new List<string>();
@@ -171,9 +172,30 @@ static void LocalUserSettingsSaveCleansUpTempFiles()
     }
 }
 
+static void AudioControllerFollowsChangedDefaultEndpoint()
+{
+    var firstEndpoint = new FakeAudioEndpoint(volume: 0.40f);
+    var secondEndpoint = new FakeAudioEndpoint(volume: 0.70f);
+    using var endpointProvider = new FakeAudioEndpointProvider(firstEndpoint);
+    using var controller = new AudioController(endpointProvider);
+
+    controller.ChangeVolume(wheelSteps: 1, volumeStep: 0.02f);
+    endpointProvider.ChangeDefaultEndpoint(secondEndpoint);
+    controller.ChangeVolume(wheelSteps: -1, volumeStep: 0.02f);
+
+    AssertNear(0.42f, firstEndpoint.Volume);
+    AssertNear(0.68f, secondEndpoint.Volume);
+}
+
 static void AssertEqual<T>(T expected, T actual)
 {
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
+        throw new InvalidOperationException($"Expected {expected}, got {actual}.");
+}
+
+static void AssertNear(float expected, float actual)
+{
+    if (Math.Abs(expected - actual) > 0.0001f)
         throw new InvalidOperationException($"Expected {expected}, got {actual}.");
 }
 
@@ -202,4 +224,30 @@ static void DeleteTempSettings(string path)
 
     if (directory != null && Directory.Exists(directory))
         Directory.Delete(directory, recursive: true);
+}
+
+internal sealed class FakeAudioEndpointProvider(IAudioEndpoint initialEndpoint)
+    : IAudioEndpointProvider
+{
+    private IAudioEndpoint _defaultEndpoint = initialEndpoint;
+
+    public event Action? DefaultEndpointChanged;
+
+    public IAudioEndpoint GetDefaultEndpoint() => _defaultEndpoint;
+
+    public void ChangeDefaultEndpoint(IAudioEndpoint endpoint)
+    {
+        _defaultEndpoint = endpoint;
+        DefaultEndpointChanged?.Invoke();
+    }
+
+    public void Dispose() { }
+}
+
+internal sealed class FakeAudioEndpoint(float volume) : IAudioEndpoint
+{
+    public float Volume { get; set; } = volume;
+    public bool Muted { get; set; }
+
+    public void Dispose() { }
 }
